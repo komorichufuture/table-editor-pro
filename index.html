@@ -366,8 +366,7 @@
         // 既存コンテンツのURLをリンクに変換
         setTimeout(() => convertUrlsToLinks(td), 100);
       } else {
-        td.innerHTML = createImageDropZone();
-        td.setAttribute('contenteditable', 'false');
+        td.innerHTML = '<span class="placeholder">クリックして入力</span>';
       }
       
       // ドラッグ&ドロップイベント
@@ -381,39 +380,98 @@
         td.classList.remove('drag-over');
       };
 
-      // セルイベント
+      // フォーカス時の処理
       td.addEventListener('focus', function() {
-        if (this.innerHTML.includes('image-drop-zone')) {
+        if (this.innerHTML.includes('placeholder')) {
           this.innerHTML = '';
-          this.setAttribute('contenteditable', 'true');
         }
       });
 
+      // フォーカスアウト時の処理
       td.addEventListener('blur', function() {
         if (!this.innerHTML.trim() || this.innerHTML === '<br>') {
-          this.innerHTML = createImageDropZone();
-          this.setAttribute('contenteditable', 'false');
+          this.innerHTML = '<span class="placeholder">クリックして入力</span>';
         } else {
           convertUrlsToLinks(this);
         }
       });
 
-      // ダブルクリックで画像選択
-      td.addEventListener('dblclick', function() {
-        selectImageForCell(this);
+      // エンターキーで改行
+      td.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          document.execCommand('insertHTML', false, '<br>');
+        }
+      });
+
+      // 右クリックメニューで画像選択
+      td.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        showCellMenu(e, this);
       });
 
       return td;
     }
 
-    function createImageDropZone() {
-      return `
-        <div class="image-drop-zone" onclick="selectImageForCell(this.closest('td'))">
-          <div class="drop-text">📷 画像</div>
-          <div class="drop-hint">クリック/ドロップ</div>
-        </div>
+    // セル右クリックメニュー
+    function showCellMenu(e, cell) {
+      const menu = document.createElement('div');
+      menu.style.cssText = `
+        position: fixed;
+        left: ${e.pageX}px;
+        top: ${e.pageY}px;
+        background: white;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 2000;
+        padding: 8px 0;
       `;
+      
+      const addImageBtn = document.createElement('div');
+      addImageBtn.textContent = '📷 画像を追加';
+      addImageBtn.style.cssText = `
+        padding: 8px 16px;
+        cursor: pointer;
+        hover: background-color: #f0f0f0;
+      `;
+      addImageBtn.onmouseover = () => addImageBtn.style.backgroundColor = '#f0f0f0';
+      addImageBtn.onmouseout = () => addImageBtn.style.backgroundColor = '';
+      addImageBtn.onclick = () => {
+        selectImageForCell(cell);
+        document.body.removeChild(menu);
+      };
+      
+      const clearBtn = document.createElement('div');
+      clearBtn.textContent = '🗑️ 内容をクリア';
+      clearBtn.style.cssText = `
+        padding: 8px 16px;
+        cursor: pointer;
+        color: #dc2626;
+      `;
+      clearBtn.onmouseover = () => clearBtn.style.backgroundColor = '#fef2f2';
+      clearBtn.onmouseout = () => clearBtn.style.backgroundColor = '';
+      clearBtn.onclick = () => {
+        cell.innerHTML = '<span class="placeholder">クリックして入力</span>';
+        document.body.removeChild(menu);
+      };
+      
+      menu.appendChild(addImageBtn);
+      menu.appendChild(clearBtn);
+      document.body.appendChild(menu);
+      
+      // メニュー外クリックで閉じる
+      setTimeout(() => {
+        document.addEventListener('click', function closeMenu() {
+          if (document.body.contains(menu)) {
+            document.body.removeChild(menu);
+          }
+          document.removeEventListener('click', closeMenu);
+        });
+      }, 100);
     }
+
+
 
     function selectImageForCell(cell) {
       currentImageCell = cell;
@@ -435,12 +493,36 @@
 
       const reader = new FileReader();
       reader.onload = function() {
+        const container = document.createElement('div');
+        container.style.cssText = `
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 5px;
+        `;
+        
         const img = document.createElement('img');
         img.src = reader.result;
         img.onclick = () => selectImageForCell(cell);
         
+        const caption = document.createElement('div');
+        caption.style.cssText = `
+          font-size: 10px;
+          color: #666;
+          text-align: center;
+          cursor: text;
+          min-height: 12px;
+          padding: 2px;
+          border-radius: 3px;
+        `;
+        caption.setAttribute('contenteditable', 'true');
+        caption.setAttribute('placeholder', 'キャプション');
+        
+        container.appendChild(img);
+        container.appendChild(caption);
+        
         cell.innerHTML = '';
-        cell.appendChild(img);
+        cell.appendChild(container);
         cell.setAttribute('contenteditable', 'false');
         
         showToast('📸 画像を追加しました');
@@ -735,9 +817,9 @@
       
       setTimeout(() => {
         if (window.innerWidth <= 768) {
-          showToast('📱 セルダブルタップで画像追加、画像ドラッグ&ドロップ対応');
+          showToast('📱 セル右クリックで画像追加、通常クリックでテキスト入力');
         } else {
-          showToast('💻 Ctrl+N(新規), Ctrl+S(保存), 画像ドラッグ&ドロップ対応');
+          showToast('💻 セル右クリックで画像追加、画像ドラッグ&ドロップ対応');
         }
       }, 3000);
     };
