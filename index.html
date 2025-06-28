@@ -299,6 +299,11 @@
         width: calc(100% - 40px);
         cursor: default;
         transform: none !important;
+        display: block;
+      }
+
+      .draggable-table:nth-child(n+2) {
+        margin-top: 30px;
       }
 
       td {
@@ -572,9 +577,16 @@
         wrapper.style.left = data.left;
         wrapper.style.backgroundColor = data.color;
       } else {
-        wrapper.style.top = (100 + tableCount * 80) + 'px';
-        wrapper.style.left = (100 + 200 * (tableCount % 4)) + 'px';
-        wrapper.style.backgroundColor = colors[tableCount % colors.length];
+        // PCとスマホで異なる配置
+        if (window.innerWidth <= 768) {
+          // スマホ: 縦に並べる（relativeなので自動配置）
+          wrapper.style.backgroundColor = colors[tableCount % colors.length];
+        } else {
+          // PC: 絶対位置で配置
+          wrapper.style.top = (100 + tableCount * 80) + 'px';
+          wrapper.style.left = (100 + 200 * (tableCount % 4)) + 'px';
+          wrapper.style.backgroundColor = colors[tableCount % colors.length];
+        }
         tableCount++;
       }
 
@@ -622,8 +634,16 @@
       }
 
       wrapper.appendChild(table);
-      document.body.appendChild(wrapper);
-      makeDraggable(wrapper);
+      
+      // 表を適切な場所に追加
+      if (window.innerWidth <= 768) {
+        // スマホ: bodyに直接追加（縦並び）
+        document.body.appendChild(wrapper);
+      } else {
+        // PC: bodyに追加（絶対位置）
+        document.body.appendChild(wrapper);
+        makeDraggable(wrapper);
+      }
       
       if (!data) {
         showToast('📊 新しい表を作成しました');
@@ -672,6 +692,11 @@
     }
 
     function makeDraggable(el) {
+      // スマホではドラッグ機能を無効化
+      if (window.innerWidth <= 768) {
+        return;
+      }
+      
       let offsetX, offsetY;
       let isDragging = false;
       
