@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>表エディタ Pro - シンプル版</title>
+  <title>表エディタ Pro - 機能完全版</title>
   <style>
     * {
       margin: 0;
@@ -16,40 +16,70 @@
       height: 100%;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       background-attachment: fixed;
+      overflow: auto;
     }
-    
-    #app {
+
+    #viewport {
+      position: relative;
+      width: 100%;
       min-height: 100vh;
-      padding: 20px;
+      overflow: auto;
+      cursor: grab;
+    }
+
+    #viewport:active {
+      cursor: grabbing;
+    }
+
+    #viewport.panning {
+      cursor: grabbing;
+    }
+
+    #background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 3000px;
+      height: 2000px;
+      background: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.1) 1px, transparent 1px);
+      background-size: 40px 40px;
+      z-index: 0;
     }
     
     #controls {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 1000;
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(10px);
       padding: 20px;
       border-radius: 15px;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-      margin-bottom: 20px;
       display: flex;
       gap: 10px;
       flex-wrap: wrap;
+      max-width: 350px;
     }
     
     .btn {
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
       border: none;
-      padding: 12px 20px;
-      border-radius: 8px;
+      padding: 12px 18px;
+      border-radius: 10px;
       cursor: pointer;
       font-weight: 600;
       font-size: 14px;
       transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
     }
     
     .btn:hover {
       transform: translateY(-2px);
-      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
     }
     
     .btn.secondary {
@@ -62,18 +92,30 @@
       color: white;
     }
     
-    #tables-container {
-      display: flex;
-      flex-direction: column;
-      gap: 30px;
-    }
-    
-    .table-wrapper {
+    .draggable-table {
+      position: absolute;
       background: rgba(255, 255, 255, 0.95);
+      border: 2px solid rgba(102, 126, 234, 0.3);
       border-radius: 15px;
       padding: 20px;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.1);
       backdrop-filter: blur(10px);
+      cursor: move;
+      z-index: 10;
+      min-width: 200px;
+      transition: all 0.3s ease;
+    }
+
+    .draggable-table:hover {
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+      transform: translateY(-3px);
+    }
+
+    .draggable-table.dragging {
+      transform: rotate(2deg) scale(1.02);
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.2);
+      z-index: 100;
+      cursor: grabbing;
     }
     
     .table-header {
@@ -81,10 +123,11 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 15px;
+      cursor: move;
     }
     
     .table-title {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: bold;
       color: #4c51bf;
       background: rgba(102, 126, 234, 0.1);
@@ -92,17 +135,18 @@
       border-radius: 8px;
       border: none;
       outline: none;
+      cursor: text;
     }
     
     .table-controls {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       flex-wrap: wrap;
     }
     
     .table-controls .btn {
-      font-size: 12px;
-      padding: 6px 12px;
+      font-size: 11px;
+      padding: 6px 10px;
     }
     
     table {
@@ -140,7 +184,50 @@
       border-color: rgba(102, 126, 234, 0.6);
       box-shadow: inset 0 0 0 2px rgba(102, 126, 234, 0.3);
     }
-    
+
+    /* ドラッグ&ドロップエリア */
+    .drop-zone {
+      border: 2px dashed rgba(102, 126, 234, 0.4);
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      background: rgba(102, 126, 234, 0.05);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.drag-over {
+      border-color: rgba(102, 126, 234, 0.6);
+      background: rgba(102, 126, 234, 0.1);
+      transform: scale(1.02);
+    }
+
+    .drop-zone-text {
+      color: #667eea;
+      font-weight: 500;
+      margin-bottom: 8px;
+    }
+
+    .drop-zone-hint {
+      color: #999;
+      font-size: 12px;
+    }
+
+    /* 画像スタイル */
+    .cell-image {
+      max-width: 100px;
+      max-height: 60px;
+      border-radius: 6px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    .cell-image:hover {
+      transform: scale(1.1);
+    }
+
     .placeholder {
       color: #999;
       font-style: italic;
@@ -154,11 +241,12 @@
       background: linear-gradient(135deg, #10b981 0%, #059669 100%);
       color: white;
       padding: 12px 20px;
-      border-radius: 8px;
+      border-radius: 10px;
       box-shadow: 0 5px 15px rgba(16, 185, 129, 0.3);
-      z-index: 1000;
+      z-index: 1001;
       transform: translateX(100%);
       transition: transform 0.3s ease;
+      font-weight: 600;
     }
     
     .toast.show {
@@ -173,14 +261,40 @@
     .file-input {
       display: none;
     }
+
+    /* リンクスタイル */
+    .cell-link {
+      color: #667eea;
+      text-decoration: none;
+      border-bottom: 1px dashed #667eea;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .cell-link:hover {
+      color: #4c51bf;
+      border-bottom: 1px solid #4c51bf;
+    }
     
     @media (max-width: 768px) {
-      #app {
-        padding: 10px;
+      #controls {
+        position: relative;
+        margin: 15px;
+        width: calc(100% - 30px);
+        max-width: none;
       }
       
-      #controls {
-        padding: 15px;
+      .draggable-table {
+        position: relative;
+        margin: 20px auto;
+        width: calc(100% - 40px);
+        cursor: default;
+        transform: none !important;
+      }
+
+      .table-header {
+        cursor: default;
       }
       
       .btn {
@@ -193,31 +307,39 @@
         min-height: 60px;
         font-size: 12px;
       }
+
+      .cell-image {
+        max-width: 70px;
+        max-height: 40px;
+      }
     }
   </style>
 </head>
 <body>
-  <div id="app">
+  <div id="viewport">
+    <div id="background"></div>
+    
     <div id="controls">
       <button class="btn" onclick="createNewTable()">📊 新しい表</button>
       <button class="btn secondary" onclick="saveToLocalStorage()">💾 保存</button>
       <button class="btn secondary" onclick="loadFromLocalStorage()">📂 復元</button>
       <button class="btn" onclick="exportToJSON()">📤 JSONエクスポート</button>
       <button class="btn" onclick="importFromJSON()">📁 JSONインポート</button>
+      <button class="btn" onclick="expandWorkspace()">📄 拡張</button>
       <button class="btn danger" onclick="clearAllTables()">🗑️ 全削除</button>
-    </div>
-    
-    <div id="tables-container">
-      <!-- 表がここに動的に追加される -->
     </div>
   </div>
 
   <div id="toast" class="toast"></div>
   <input type="file" id="json-file-input" class="file-input" accept=".json">
+  <input type="file" id="image-file-input" class="file-input" accept="image/*">
 
   <script>
     let tableCount = 0;
     let tables = [];
+    let dragTarget = null;
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
 
     // トースト通知
     function showToast(message, type = 'success') {
@@ -238,6 +360,8 @@
         const tableData = {
           id: tableId,
           title: `表 ${tableCount}`,
+          x: 200 + (tableCount * 50),
+          y: 150 + (tableCount * 50),
           rows: [
             ['', '', ''],
             ['', '', ''],
@@ -258,13 +382,15 @@
     // 表をHTMLに描画
     function renderTable(tableData) {
       try {
-        const container = document.getElementById('tables-container');
+        const viewport = document.getElementById('viewport');
         
         const wrapper = document.createElement('div');
-        wrapper.className = 'table-wrapper';
+        wrapper.className = 'draggable-table';
         wrapper.setAttribute('data-table-id', tableData.id);
+        wrapper.style.left = `${tableData.x}px`;
+        wrapper.style.top = `${tableData.y}px`;
         
-        // ヘッダー
+        // ヘッダー（ドラッグハンドル）
         const header = document.createElement('div');
         header.className = 'table-header';
         
@@ -274,15 +400,18 @@
         titleInput.addEventListener('input', function() {
           updateTableTitle(tableData.id, this.value);
         });
+        titleInput.addEventListener('mousedown', function(e) {
+          e.stopPropagation(); // タイトル編集時はドラッグしない
+        });
         
         const controls = document.createElement('div');
         controls.className = 'table-controls';
         controls.innerHTML = `
-          <button class="btn" onclick="addRow('${tableData.id}')">➕ 行</button>
-          <button class="btn" onclick="addColumn('${tableData.id}')">➕ 列</button>
-          <button class="btn danger" onclick="removeRow('${tableData.id}')">➖ 行</button>
-          <button class="btn danger" onclick="removeColumn('${tableData.id}')">➖ 列</button>
-          <button class="btn danger" onclick="deleteTable('${tableData.id}')">🗑️ 削除</button>
+          <button class="btn" onclick="addRow('${tableData.id}')">➕行</button>
+          <button class="btn" onclick="addColumn('${tableData.id}')">➕列</button>
+          <button class="btn danger" onclick="removeRow('${tableData.id}')">➖行</button>
+          <button class="btn danger" onclick="removeColumn('${tableData.id}')">➖列</button>
+          <button class="btn danger" onclick="deleteTable('${tableData.id}')">🗑️</button>
         `;
         
         header.appendChild(titleInput);
@@ -303,47 +432,266 @@
             
             if (tableData.rows[i][j]) {
               td.innerHTML = tableData.rows[i][j];
+              // 既存データのリンク変換
+              setTimeout(() => convertUrlsToLinks(td), 100);
             } else {
-              td.innerHTML = '<span class="placeholder">クリックして入力</span>';
+              td.innerHTML = createEmptyCell();
             }
             
-            // セルイベント
-            td.addEventListener('focus', function() {
-              if (this.innerHTML.includes('placeholder')) {
-                this.innerHTML = '';
-              }
-            });
-            
-            td.addEventListener('blur', function() {
-              const row = parseInt(this.getAttribute('data-row'));
-              const col = parseInt(this.getAttribute('data-col'));
-              updateCellData(tableData.id, row, col, this.innerHTML);
-              
-              if (!this.innerHTML.trim()) {
-                this.innerHTML = '<span class="placeholder">クリックして入力</span>';
-              }
-            });
-            
-            td.addEventListener('keydown', function(e) {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                document.execCommand('insertHTML', false, '<br>');
-              }
-            });
-            
+            setupCellEvents(td, tableData.id);
             tr.appendChild(td);
           }
           table.appendChild(tr);
         }
         
         wrapper.appendChild(table);
-        container.appendChild(wrapper);
+        viewport.appendChild(wrapper);
+        
+        // ドラッグ機能を設定
+        makeDraggable(wrapper);
         
         console.log('表を描画完了:', tableData.id);
       } catch (error) {
         console.error('表描画エラー:', error);
         showToast('表の描画に失敗しました', 'error');
       }
+    }
+
+    // 空のセルのHTML作成
+    function createEmptyCell() {
+      return `
+        <div class="drop-zone" onclick="selectImage(this)">
+          <div class="drop-zone-text">📷 画像追加</div>
+          <div class="drop-zone-hint">クリックまたはドロップ</div>
+        </div>
+      `;
+    }
+
+    // セルイベント設定
+    function setupCellEvents(td, tableId) {
+      // フォーカス時
+      td.addEventListener('focus', function() {
+        if (this.innerHTML.includes('drop-zone')) {
+          this.innerHTML = '';
+        }
+      });
+      
+      // フォーカスアウト時
+      td.addEventListener('blur', function() {
+        const row = parseInt(this.getAttribute('data-row'));
+        const col = parseInt(this.getAttribute('data-col'));
+        updateCellData(tableId, row, col, this.innerHTML);
+        
+        if (!this.innerHTML.trim()) {
+          this.innerHTML = createEmptyCell();
+        } else {
+          convertUrlsToLinks(this);
+        }
+      });
+      
+      // エンターキー
+      td.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          document.execCommand('insertHTML', false, '<br>');
+        }
+      });
+
+      // ドラッグ&ドロップ
+      td.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        this.classList.add('drag-over');
+      });
+
+      td.addEventListener('dragleave', function(e) {
+        this.classList.remove('drag-over');
+      });
+
+      td.addEventListener('drop', function(e) {
+        e.preventDefault();
+        this.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0 && files[0].type.startsWith('image/')) {
+          handleImageUpload(files[0], this, tableId);
+        }
+      });
+
+      // ダブルクリックで画像選択
+      td.addEventListener('dblclick', function() {
+        selectImage(this);
+      });
+    }
+
+    // 画像選択
+    function selectImage(element) {
+      const input = document.getElementById('image-file-input');
+      input.onchange = function() {
+        if (this.files.length > 0) {
+          const cell = element.closest('td') || element;
+          const tableId = cell.closest('.draggable-table').getAttribute('data-table-id');
+          handleImageUpload(this.files[0], cell, tableId);
+        }
+      };
+      input.click();
+    }
+
+    // 画像アップロード処理
+    function handleImageUpload(file, cell, tableId) {
+      try {
+        if (file.size > 5 * 1024 * 1024) {
+          showToast('画像サイズは5MB以下にしてください', 'error');
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.className = 'cell-image';
+          img.alt = file.name;
+          
+          img.addEventListener('click', function(event) {
+            event.stopPropagation();
+            selectImage(cell);
+          });
+          
+          cell.innerHTML = '';
+          cell.appendChild(img);
+          cell.setAttribute('contenteditable', 'false');
+          
+          // データ更新
+          const row = parseInt(cell.getAttribute('data-row'));
+          const col = parseInt(cell.getAttribute('data-col'));
+          updateCellData(tableId, row, col, cell.innerHTML);
+          
+          showToast('📸 画像をアップロードしました');
+        };
+        
+        reader.onerror = function() {
+          showToast('画像の読み込みに失敗しました', 'error');
+        };
+        
+        reader.readAsDataURL(file);
+      } catch (error) {
+        console.error('画像アップロードエラー:', error);
+        showToast('画像のアップロードに失敗しました', 'error');
+      }
+    }
+
+    // URLをリンクに変換
+    function convertUrlsToLinks(element) {
+      if (document.activeElement === element) return;
+      if (element.innerHTML.includes('<a href=') || element.innerHTML.includes('<img')) return;
+      
+      const urlRegex = /(https?:\/\/[^\s<>"]+)/gi;
+      const text = element.innerHTML;
+      
+      const linkedText = text.replace(urlRegex, function(url) {
+        const displayUrl = url.length > 25 ? url.substring(0, 22) + '...' : url;
+        return `<a href="${url}" target="_blank" class="cell-link" onclick="event.stopPropagation()">${displayUrl}</a>`;
+      });
+      
+      if (linkedText !== text) {
+        element.innerHTML = linkedText;
+        showToast('🔗 URLをリンクに変換しました');
+      }
+    }
+
+    // ドラッグ機能
+    function makeDraggable(element) {
+      const header = element.querySelector('.table-header');
+      
+      header.addEventListener('mousedown', function(e) {
+        // ボタンやタイトル入力をクリックした場合はドラッグしない
+        if (e.target.closest('button') || e.target.closest('.table-title')) {
+          return;
+        }
+        
+        isDragging = true;
+        dragTarget = element;
+        element.classList.add('dragging');
+        
+        const rect = element.getBoundingClientRect();
+        const viewportRect = document.getElementById('viewport').getBoundingClientRect();
+        
+        dragOffset.x = e.clientX - rect.left;
+        dragOffset.y = e.clientY - rect.top;
+        
+        e.preventDefault();
+      });
+    }
+
+    // グローバルマウスイベント
+    document.addEventListener('mousemove', function(e) {
+      if (isDragging && dragTarget) {
+        const viewport = document.getElementById('viewport');
+        const viewportRect = viewport.getBoundingClientRect();
+        
+        const x = e.clientX - viewportRect.left - dragOffset.x + viewport.scrollLeft;
+        const y = e.clientY - viewportRect.top - dragOffset.y + viewport.scrollTop;
+        
+        dragTarget.style.left = Math.max(0, x) + 'px';
+        dragTarget.style.top = Math.max(0, y) + 'px';
+        
+        // データ更新
+        const tableId = dragTarget.getAttribute('data-table-id');
+        const table = tables.find(t => t.id === tableId);
+        if (table) {
+          table.x = Math.max(0, x);
+          table.y = Math.max(0, y);
+        }
+      }
+    });
+
+    document.addEventListener('mouseup', function() {
+      if (isDragging && dragTarget) {
+        dragTarget.classList.remove('dragging');
+        isDragging = false;
+        dragTarget = null;
+      }
+    });
+
+    // パン機能
+    function initPanFunction() {
+      const viewport = document.getElementById('viewport');
+      let isPanning = false;
+      let startX, startY, scrollLeft, scrollTop;
+
+      viewport.addEventListener('mousedown', function(e) {
+        if (e.target.closest('.draggable-table') || e.target.closest('#controls')) {
+          return;
+        }
+        
+        isPanning = true;
+        viewport.classList.add('panning');
+        startX = e.pageX - viewport.offsetLeft;
+        startY = e.pageY - viewport.offsetTop;
+        scrollLeft = viewport.scrollLeft;
+        scrollTop = viewport.scrollTop;
+        e.preventDefault();
+      });
+
+      viewport.addEventListener('mouseleave', function() {
+        isPanning = false;
+        viewport.classList.remove('panning');
+      });
+
+      viewport.addEventListener('mouseup', function() {
+        isPanning = false;
+        viewport.classList.remove('panning');
+      });
+
+      viewport.addEventListener('mousemove', function(e) {
+        if (!isPanning) return;
+        e.preventDefault();
+        const x = e.pageX - viewport.offsetLeft;
+        const y = e.pageY - viewport.offsetTop;
+        const walkX = (x - startX) * 1;
+        const walkY = (y - startY) * 1;
+        viewport.scrollLeft = scrollLeft - walkX;
+        viewport.scrollTop = scrollTop - walkY;
+      });
     }
 
     // セルデータ更新
@@ -452,12 +800,24 @@
         const wrapper = document.querySelector(`[data-table-id="${tableId}"]`);
         const table = tables.find(t => t.id === tableId);
         if (wrapper && table) {
+          const x = parseInt(wrapper.style.left);
+          const y = parseInt(wrapper.style.top);
+          table.x = x;
+          table.y = y;
           wrapper.remove();
           renderTable(table);
         }
       } catch (error) {
         console.error('表再描画エラー:', error);
       }
+    }
+
+    // ワークスペース拡張
+    function expandWorkspace() {
+      const bg = document.getElementById('background');
+      bg.style.width = (bg.offsetWidth + 1000) + 'px';
+      bg.style.height = (bg.offsetHeight + 1000) + 'px';
+      showToast('📄 ワークスペースを拡張しました');
     }
 
     // ローカルストレージに保存
@@ -479,7 +839,7 @@
         const savedData = localStorage.getItem('tableEditorData');
         if (savedData) {
           tables = JSON.parse(savedData);
-          document.getElementById('tables-container').innerHTML = '';
+          document.querySelectorAll('.draggable-table').forEach(el => el.remove());
           tables.forEach(table => renderTable(table));
           tableCount = tables.length;
           showToast('📂 データを復元しました');
@@ -502,143 +862,8 @@
         }
         
         const exportData = {
-          version: '1.0',
+          version: '2.0',
           exportDate: new Date().toISOString(),
           tables: tables
         };
         
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-          type: 'application/json'
-        });
-        
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `table-data-${new Date().toISOString().split('T')[0]}.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        
-        showToast('📤 JSONファイルを保存しました');
-        console.log('エクスポート完了:', exportData);
-      } catch (error) {
-        console.error('エクスポートエラー:', error);
-        showToast('エクスポートに失敗しました', 'error');
-      }
-    }
-
-    // JSONインポート
-    function importFromJSON() {
-      try {
-        const fileInput = document.getElementById('json-file-input');
-        fileInput.click();
-      } catch (error) {
-        console.error('インポート開始エラー:', error);
-        showToast('ファイル選択に失敗しました', 'error');
-      }
-    }
-
-    // ファイル選択時の処理
-    document.getElementById('json-file-input').addEventListener('change', function(e) {
-      try {
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        const reader = new FileReader();
-        reader.onload = function(event) {
-          try {
-            const importData = JSON.parse(event.target.result);
-            const importTables = importData.tables || importData;
-            
-            if (confirm('既存の表を削除して新しいデータを読み込みますか？')) {
-              tables = importTables;
-              document.getElementById('tables-container').innerHTML = '';
-              tables.forEach(table => renderTable(table));
-              tableCount = tables.length;
-              showToast(`📁 ${tables.length}個の表を読み込みました`);
-              console.log('インポート完了:', tables);
-            }
-          } catch (error) {
-            console.error('JSON解析エラー:', error);
-            showToast('JSONファイルの形式が正しくありません', 'error');
-          }
-        };
-        
-        reader.onerror = function() {
-          showToast('ファイルの読み込みに失敗しました', 'error');
-        };
-        
-        reader.readAsText(file);
-        
-        // ファイル入力をリセット
-        e.target.value = '';
-      } catch (error) {
-        console.error('ファイル処理エラー:', error);
-        showToast('ファイルの処理に失敗しました', 'error');
-      }
-    });
-
-    // 全削除
-    function clearAllTables() {
-      try {
-        if (confirm('すべての表を削除しますか？この操作は取り消せません。')) {
-          tables = [];
-          tableCount = 0;
-          document.getElementById('tables-container').innerHTML = '';
-          localStorage.removeItem('tableEditorData');
-          localStorage.removeItem('tableEditorSaveTime');
-          showToast('🗑️ すべての表を削除しました');
-        }
-      } catch (error) {
-        console.error('全削除エラー:', error);
-      }
-    }
-
-    // ページ読み込み時の処理
-    window.addEventListener('load', function() {
-      try {
-        showToast('🚀 表エディタが起動しました');
-        
-        // 自動保存データがあるかチェック
-        setTimeout(() => {
-          const savedData = localStorage.getItem('tableEditorData');
-          if (savedData) {
-            const saveTime = localStorage.getItem('tableEditorSaveTime');
-            const timeStr = saveTime ? new Date(saveTime).toLocaleString() : '不明';
-            if (confirm(`前回のデータがあります (${timeStr})。復元しますか？`)) {
-              loadFromLocalStorage();
-            }
-          }
-        }, 1000);
-        
-        console.log('アプリ初期化完了');
-      } catch (error) {
-        console.error('初期化エラー:', error);
-      }
-    });
-
-    // キーボードショートカット
-    document.addEventListener('keydown', function(e) {
-      if (e.ctrlKey || e.metaKey) {
-        switch(e.key) {
-          case 'n':
-            e.preventDefault();
-            createNewTable();
-            break;
-          case 's':
-            e.preventDefault();
-            saveToLocalStorage();
-            break;
-        }
-      }
-    });
-
-    // デバッグ用
-    window.debugTables = function() {
-      console.log('現在の表データ:', tables);
-      console.log('表の数:', tables.length);
-    };
-  </script>
-</body>
-</html>
