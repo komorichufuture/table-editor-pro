@@ -460,9 +460,9 @@
     <div id="controls">
       <button class="control-btn" onclick="createTable()">📊 新しい表</button>
       <button class="control-btn secondary-btn" onclick="saveData()">💾 保存</button>
-      <button class="control-btn success-btn" onclick="loadData()">📁 読み込み</button>
-      <button class="control-btn" onclick="exportJSON()">📤 エクスポート</button>
-      <button class="control-btn" onclick="showShareModal()">🔗 共有</button>
+      <button class="control-btn success-btn" onclick="importJSON()">📁 JSONから読み込み</button>
+      <button class="control-btn" onclick="exportJSON()">📤 JSONで保存</button>
+      <button class="control-btn" onclick="showShareModal()">🔗 URLで共有</button>
       <button class="control-btn" onclick="expandWorkspace()">📄 拡張</button>
       <button class="control-btn danger-btn" onclick="clearAll()">🗑️ 全削除</button>
     </div>
@@ -991,16 +991,27 @@
       modal.className = 'modal';
       modal.innerHTML = `
         <div class="modal-content">
-          <h3>🔗 表を共有</h3>
-          <p>以下のURLを共有して、他の人があなたの表を見ることができます：</p>
+          <h3>🔗 URLで表を共有</h3>
+          <p><strong>この機能について：</strong><br>
+          現在の表をURLに埋め込んで、他の人と共有できます。<br>
+          URLをコピーして送れば、相手は同じ表を見ることができます。</p>
+          
+          <p><strong>共有URL：</strong></p>
           <div class="share-url">${shareUrl}</div>
+          
           <div class="modal-buttons">
             <button class="modal-btn cancel" onclick="this.closest('.modal').remove()">閉じる</button>
-            <button class="modal-btn primary" onclick="copyShareUrl('${shareUrl}')">URLをコピー</button>
+            <button class="modal-btn primary" onclick="copyShareUrl('${shareUrl}')">📋 URLをコピー</button>
           </div>
-          <p style="font-size: 12px; color: #666; margin-top: 15px;">
-            ⚠️ URLが非常に長くなる場合があります。大量のデータの場合はJSONエクスポートをお勧めします。
-          </p>
+          
+          <div style="background: #f0f9ff; border: 1px solid #0ea5e9; border-radius: 8px; padding: 12px; margin-top: 15px; font-size: 13px;">
+            <strong>💡 使い方：</strong><br>
+            1. 「📋 URLをコピー」をクリック<br>
+            2. メール、チャット、SNSなどでURLを送信<br>
+            3. 相手がURLをクリックすると同じ表が開く<br><br>
+            <strong>⚠️ 注意：</strong> 表のデータが多いとURLが非常に長くなります。<br>
+            大きなデータの場合は「📤 JSONで保存」→ファイル共有をお勧めします。
+          </div>
         </div>
       `;
       
@@ -1169,15 +1180,28 @@
         }
       }
       
-      showToast('🚀 表エディタ Pro が起動しました！');
+      // 自動保存されたデータがあれば読み込み確認
+      const savedData = localStorage.getItem('tableEditorData');
+      if (savedData && !new URLSearchParams(window.location.search).get('data')) {
+        const saveTime = localStorage.getItem('tableEditorSaveTime');
+        const timeStr = saveTime ? new Date(saveTime).toLocaleString() : '不明';
+        
+        if (confirm(`前回の作業データがあります (${timeStr})。復元しますか？`)) {
+          loadData();
+        } else {
+          showToast('🚀 表エディタ Pro が起動しました！新しい表を作成してください。');
+        }
+      } else {
+        showToast('🚀 表エディタ Pro が起動しました！');
+      }
       
       setTimeout(() => {
         if (window.innerWidth <= 768) {
-          showToast('📱 スマホ: 背景スワイプで移動、ダブルタップで画像追加');
+          showToast('📱 操作: 背景スワイプで移動、セルダブルタップで画像追加');
         } else {
-          showToast('💻 PC: Ctrl+N(新規), Ctrl+S(保存), ドラッグ&ドロップで画像追加');
+          showToast('💻 ショートカット: Ctrl+N(新規), Ctrl+S(保存), Ctrl+O(JSON読込)');
         }
-      }, 3000);
+      }, 3500);
     };
   </script>
 </body>
